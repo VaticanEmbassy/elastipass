@@ -83,7 +83,7 @@ class PasswordsHandler(BaseHandler):
     @run_on_executor
     def query(self, q, kind='term', field='email.raw',
               offset=0, limit=20, index=INDEX):
-        search = Search(using=self.es, index=index, doc_type=doc_type)
+        search = Search(using=self.es, index=index)
         if isinstance(q, dict):
             search.update_from_dict(q)
         else:
