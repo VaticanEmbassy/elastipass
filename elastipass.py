@@ -20,9 +20,7 @@ from elasticsearch_dsl.query import Term, Match, Wildcard, Regexp, Fuzzy
 
 
 INDEX = 'pwd_*'
-DOC_TYPE = 'account'
 LOG_INDEX = 'pwdlogs'
-LOG_DOC_TYPE = 'log'
 
 QUERY_KINDS = {
     'term': Term,
@@ -78,13 +76,13 @@ class PasswordsHandler(BaseHandler):
     @run_on_executor
     def log(self, log):
         try:
-            self.es.index(index=LOG_INDEX, doc_type=LOG_DOC_TYPE, body=log)
+            self.es.index(index=LOG_INDEX, body=log)
         except Exception as e:
             print('Error logging: %s' % e)
 
     @run_on_executor
     def query(self, q, kind='term', field='email.raw',
-              offset=0, limit=20, index=INDEX, doc_type=DOC_TYPE):
+              offset=0, limit=20, index=INDEX):
         search = Search(using=self.es, index=index, doc_type=doc_type)
         if isinstance(q, dict):
             search.update_from_dict(q)
@@ -169,13 +167,13 @@ def run():
             help="specify the SSL certificate to use for secure connections")
     define("ssl_key", default=os.path.join(os.path.dirname(__file__), 'ssl', 'elastipass_key.pem'),
             help="specify the SSL private key to use for secure connections")
+    define("elastic-server", default='es-01', help="the Elasticsearch server to connect to", type=str)
     define("debug", default=False, help="run in debug mode")
     define("config", help="read configuration file",
             callback=lambda path: tornado.options.parse_config_file(path, final=False))
     tornado.options.parse_command_line()
 
-    #es = Elasticsearch(['elasticsearch'], timeout=240, http_auth=('elastic', 'changeme'))
-    es = Elasticsearch(['elasticsearch'], timeout=240)
+    es = Elasticsearch([options.elastic_server], timeout=240)
 
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
