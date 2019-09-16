@@ -27,6 +27,7 @@
     <v-server-table ref="dataTable" url="/api" :columns="tableColumns" :options="tableOptions" @loaded="onTableLoaded"></v-server-table>
 
       <div>
+          The number of results is approximated.<br/>
           The Elasticsearch schema is more or less <a href="/static/elastic_schema.json" download>this one</a>.
 
           <br />

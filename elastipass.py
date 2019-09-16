@@ -95,7 +95,8 @@ class PasswordsHandler(BaseHandler):
                 cls_ = QUERY_KINDS[kind]
                 search = search.query(cls_(**{field: q}))
         results = search[offset:offset+limit].execute()
-        return dict(results=results, total=results.hits.total,
+        return dict(results=results, total=results.hits.total.value,
+                    hits_relation=results.hits.total.relation,
                     took=results.took, timed_out=results.timed_out)
 
     @gen.coroutine
@@ -152,7 +153,8 @@ class PasswordsHandler(BaseHandler):
                 'limit': args.get('limit') or 0,
                 'took': res.get('took') or 0,
                 'timed_out': res.get('timed_out') or False,
-                'hits': res.get('total') or 0
+                'hits': res.get('total') or 0,
+                'hits_releation': res.get('hits_relation') or 'eq',
             }
             self.log(log)
         self.write(res)
@@ -173,7 +175,7 @@ def run():
             callback=lambda path: tornado.options.parse_config_file(path, final=False))
     tornado.options.parse_command_line()
 
-    es = Elasticsearch([options.elastic_server], timeout=240)
+    es = Elasticsearch(options.elastic_server.split(','), timeout=240)
 
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
