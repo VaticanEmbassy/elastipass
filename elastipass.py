@@ -19,8 +19,10 @@ from elasticsearch import Elasticsearch
 from elasticsearch_dsl.query import Term, Match, Wildcard, Regexp, Fuzzy
 
 
-INDEX = 'pwd_*'
-LOG_INDEX = 'pwdlogs'
+INDICES_CLASSIC = 'pwd_*'
+INDICES_PASTEBIN = 'pastebin_*'
+INDICES_ALL = [INDICES_CLASSIC, INDICES_PASTEBIN]
+LOG_INDEX = 'elastipass_logs'
 
 QUERY_KINDS = {
     'term': Term,
@@ -82,8 +84,8 @@ class PasswordsHandler(BaseHandler):
 
     @run_on_executor
     def query(self, q, kind='term', field='email.raw',
-              offset=0, limit=20, index=INDEX):
-        search = Search(using=self.es, index=index)
+              offset=0, limit=20, indices=[INDICES_ALL]):
+        search = Search(using=self.es, index=indices)
         if isinstance(q, dict):
             search.update_from_dict(q)
         else:
@@ -127,6 +129,17 @@ class PasswordsHandler(BaseHandler):
                     pass
             new_args['q'] = args.copy()
             args = new_args
+        if 'indices' not in args:
+            args['indices'] = 'all'
+        indices = set()
+        if args['indices'] == 'classic':
+            indices.add(INDICES_CLASSIC)
+        elif args['indices'] == 'pastebin':
+            indices.add(INDICES_PASTEBIN)
+        else:
+            indices.add(INDICES_CLASSIC)
+            indices.add(INDICES_PASTEBIN)
+        args['indices'] = list(indices)
         if args.get('q'):
             try:
                 res = yield self.query(**args)

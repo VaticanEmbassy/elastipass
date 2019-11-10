@@ -1,9 +1,10 @@
 <template>
   <div id="search" class="search">
-    <h1>Search <!-- , <a href="http://vaticanembp6dh42.onion:5601" target="_blank">Kibana</a>, <a href="http://vaticanembp6dh42.onion:3000" target="_blank">Grafana</a --></h1>
+    <h1>Elastipass</h1>
     Search for emails, passwords and domains.
     <p>
-    <strong>NOTICE: DO NOT MISUSES THESE DATA.  Do not scrape the whole db doing queries on it. Keep in mind that the first goal is to allow people to do analyses on the passwords. Also, notice that all of the data is from source that are publicly available from many sources since many years, and are for the most part obsolete.</strong>
+    <br />
+    <strong>NOTICE: DO NOT MISUSE THESE DATA.  Do not scrape the whole db doing queries on it. Keep in mind that the first goal is to allow people to do analyses on the passwords. Also, notice that all of the data is from sources that are publicly available since many years, and for the most part are obsolete.</strong>
     </p>
 
     <pacman-loader :loading="loading" class="pacman"></pacman-loader>
@@ -19,23 +20,31 @@
                 <el-option label="domain (no TLD), exact" value="term:domain_notld"></el-option>
                 <el-option label="password, exact" value="term:password.raw"></el-option>
             </el-select>
-            <el-button slot="append" icon="search" @click="submitQuery()"></el-button>
+            <el-select v-model="searchIndices" slot="append" class="searchIndicesSelect" >
+                <el-option label="all" value="all"></el-option>
+                <el-option label="classic" value="classic"></el-option>
+                <el-option label="pastebin" value="pastebin"></el-option>
+            </el-select>
         </el-input>
+        <el-button icon="search" @click="submitQuery()"></el-button>
     </div>
 
     <br />
     <v-server-table ref="dataTable" url="/api" :columns="tableColumns" :options="tableOptions" @loaded="onTableLoaded"></v-server-table>
 
       <div>
-          The number of results is approximated.<br/>
+          The number of results can be approximated.<br/>
           The Elasticsearch schema is more or less <a href="/static/elastic_schema.json" download>this one</a>.
 
           <br />
-          The available dumps are <a href="/static/dumps.txt" target="_blank">these ones</a>; the data is deduplicated.<br />
-          Currently there are <b>1,389,442,373 entries</b>.
+          The available dumps are <a href="/static/dumps.txt" target="_blank">these ones</a>; the data is NOT deduplicated.<br />
+          Currently there are <b>over 2.68 billion entries</b>.
+          <br />
+          <br />
+           The database is continuously updated using a feed from <b>pastebin</b>.
 
           <h2>GUI</h2>
-          You can run various kind of searches using this GUI. The <strong>smart</strong> query is something like &quot;(term:email.raw * 3 boost) + (term:username.raw * 2 boost) + match:username&quot;; it - and the "match" query - can be somehow heavy, so use them only if needed.
+          You can run various kind of queries using this GUI. The <strong>smart</strong> query is something like &quot;(term:email.raw * 3 boost) + (term:username.raw * 2 boost) + match:username&quot;; it - and the "match" query - can be somehow heavy, so use them only if needed.
 
           <h2>Analyses</h2>
           We have analyzed some data; the raw results <a href="/static/index.html">can be found here</a>.
@@ -48,18 +57,18 @@
               <li><strong>kind</strong>: the type of query; can be one of: term, match, fuzzy, regexp, ...</li>
               <li><strong>field</strong>: the field to match; one of: email, username, username.raw, password, ...</li>
               <li><strong>offset</strong>: an integer representing the start entry</li>
-              <li><strong>limit</strong>: return the specified amount of results</li>
+              <li><strong>limit</strong>: how many results are returned, at most</li>
           </ul>
 
           <h4>Direct query</h4>
-          The <strong>/api</strong> endpoint can also be called directly with a full Elasticsearch query, without the need to specify any of the above parameters; if you need to familiarize with the Elasticsearch queries, start with the <a href="https://www.elastic.co/guide/en/elasticsearch/guide/current/query-dsl-intro.html" target="_blank">official documentation</a>.
+          The <strong>/api</strong> endpoint can also be called directly with a full Elasticsearch query, without the need to specify any of the above parameters; if you need to familiarize with Elasticsearch, start with the <a href="https://www.elastic.co/guide/en/elasticsearch/guide/current/query-dsl-intro.html" target="_blank">official documentation</a>.
 
-          The data is split in multiple indices, named <b>pwd_*</b>
+          The data is split in multiple indices, named <b>pwd_*</b>  Live data is stored in the <b>pastebin_*</b> indices.
           <p>
           Please avoid doing damage to the database or queries that takes too long.
 
           <h2>Import process</h2>
-          We used <a href="/static/elastic_import.py">this script</a> to import the data in Elasticsearch. Before that, we used some custom scripts to convert the various dumps to a common CSV file with format <b>email,username,full-domain,domain-to-tld,tld,password,source-id</b> (where source-id identifies the dump).
+          We used <a href="https://github.com/VaticanEmbassy/golastipass">golastipass</a> to import the data in Elasticsearch.
 
           <h2>Contacts</h2>
           <a href="mailto:pwdmonk3ys@esiliati.org">Write us a mail</a>.
@@ -79,6 +88,8 @@ export default {
             previousQuery: '',
             searchType: 'term:email.raw',
             previousSearchType: 'term:email.raw',
+            searchIndices: 'all',
+            previousSearchIndices: 'all',
             data: [],
             nolog: false,
             loading: false,
@@ -109,6 +120,9 @@ export default {
                     }
                     if (data.q.field) {
                         data.field = data.q.field;
+                    }
+                    if (data.q.indices) {
+                        data.indices = data.q.indices;
                     }
                     if (data.q.page !== undefined) {
                         data.page = data.q.page;
@@ -146,6 +160,7 @@ export default {
         if (this.kindAndField) {
             this.searchType = kindAndField;
         }
+        this.searchIndices = route.query.indices || 'all';
         // that's so wrong it hurts, but it's needed to avoid that the call is overwritten
         // by the first call made by v-server-table to /api.
         setTimeout(this.submitQuery, 400);
@@ -160,7 +175,7 @@ export default {
             if (!this.query) {
                 return;
             }
-            var args = {query: this.query};
+            var args = {query: this.query, indices: this.searchIndices};
             var kindAndField = this.searchType.split(':', 2);
             args.kind = kindAndField[0];
             if (kindAndField.length == 2) {
@@ -175,7 +190,8 @@ export default {
             });
             document.title = this.query || '';
             if (this.query != this.previousQuery ||
-                    this.searchType != this.previousSearchType) {
+                    this.searchType != this.previousSearchType ||
+                    this.searchIndices != this.previousSearchIndices) {
                 this.loading = true;
                 this.$refs.dataTable.setFilter(args);
                 if (this.$refs.dataTable.page != 1) {
@@ -184,6 +200,7 @@ export default {
             }
             this.previousQuery = this.query;
             this.previousSearchType = this.searchType;
+            this.previousSearchIndices = this.searchIndices;
         }
     },
     components: { PacmanLoader }
@@ -233,7 +250,11 @@ li {
 }
 
 .searchTypeSelect {
-    width: 200px;
+    min-width: 200px;
+}
+
+.searchIndicesSelect {
+    min-width: 100px;
 }
 
 .pacman {

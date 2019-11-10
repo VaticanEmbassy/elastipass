@@ -1,49 +1,68 @@
 {
-  "domain" : {
-    "type" : "keyword",
-    "normalizer" : "lc_normalizer"
-  },
-  "domain_notld" : {
-    "type" : "keyword",
-    "normalizer" : "lc_normalizer"
-  },
-  "email" : {
-    "type" : "text",
-    "fields" : {
-      "raw" : {
-	"type" : "keyword",
-	"normalizer" : "lc_normalizer"
-      }
+    "settings": {
+        "index": {
+            "refresh_interval": -1,
+            "number_of_replicas": 0
+        },
+        "analysis": {
+            "normalizer": {
+                "lc_normalizer": {
+                    "type": "custom",
+                    "char_filter": [],
+                    "filter": ["lowercase"]
+                }
+            }
+        }
     },
-    "analyzer" : "simple"
-  },
-  "password" : {
-    "type" : "text",
-    "fields" : {
-      "raw" : {
-	"type" : "keyword"
-      }
-    },
-    "analyzer" : "simple"
-  },
-  "password_length" : {
-    "type" : "short"
-  },
-  "source" : {
-    "type" : "short"
-  },
-  "tld" : {
-    "type" : "keyword",
-    "normalizer" : "lc_normalizer"
-  },
-  "username" : {
-    "type" : "text",
-    "fields" : {
-      "raw" : {
-	"type" : "keyword",
-	"normalizer" : "lc_normalizer"
-      }
-    },
-    "analyzer" : "simple"
-  }
+    "mappings": {
+        "properties": {
+            "email": {
+                "type": "text",
+                "analyzer": "simple",
+                "fields": {
+                    "raw": {
+                        "type": "keyword",
+                        "normalizer": "lc_normalizer"
+                    }
+                }
+            },
+            "username": {
+                "type": "text",
+                "analyzer": "simple",
+                "fields": {
+                    "raw": {
+                        "type": "keyword",
+                        "normalizer": "lc_normalizer"
+                    }
+                }
+            },
+            "domain": {
+                "type": "keyword",
+                "normalizer": "lc_normalizer"
+            },
+            "domain_notld": {
+                "type": "keyword",
+                "normalizer": "lc_normalizer"
+            },
+            "tld": {
+                "type": "keyword",
+                "normalizer": "lc_normalizer"
+            },
+            "password": {
+                "type": "text",
+                "analyzer": "simple",
+                "fields": {
+                    "raw": {
+                        "type": "keyword"
+                    }
+                }
+            },
+            "password_length": {
+                "type": "short"
+            },
+            "source": {
+                "type": "short"
+            }
+        }
+    }
 }
